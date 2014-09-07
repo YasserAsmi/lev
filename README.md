@@ -22,6 +22,7 @@ class EvHttpRequest;
 class EvHttpServer;
 
 Code: An HTTP server using lev.  Look at the example section for more.
+<code>
 <br>  #include "lev.h"
 <br>  using namespace lev;
 <br>
@@ -29,7 +30,7 @@ Code: An HTTP server using lev.  Look at the example section for more.
 <br>  void onHttpHello(struct evhttp_request* req, void* arg)
 <br>  {
 <br>      EvHttpRequest evreq(req);
-<br>      evreq.output().printf("<html><body><center><h1>Hello World!</h1></center></body></html>");
+<br>      evreq.output().printf("<..>Hello World!<..>");
 <br>      evreq.sendReply(200, "OK");
 <br>  }
 <br>
@@ -45,3 +46,4 @@ Code: An HTTP server using lev.  Look at the example section for more.
 <br>
 <br>      return 0;
 <br>  }
+</code>
