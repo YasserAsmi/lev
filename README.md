@@ -10,6 +10,7 @@ objects.
 lev is actually just a single header file, lev.h.  Just include it in your application and start using all
 the classes:
 
+```
 class EvBaseLoop;
 class EvEvent;
 class EvSockAddr;
@@ -20,30 +21,32 @@ class EvConnListener;
 class EvHttpUri;
 class EvHttpRequest;
 class EvHttpServer;
+```
 
 Code: An HTTP server using lev.  Look at the example section for more.
-<code>
-<br>  #include "lev.h"
-<br>  using namespace lev;
-<br>
-<br>  static
-<br>  void onHttpHello(struct evhttp_request* req, void* arg)
-<br>  {
-<br>      EvHttpRequest evreq(req);
-<br>      evreq.output().printf("<..>Hello World!<..>");
-<br>      evreq.sendReply(200, "OK");
-<br>  }
-<br>
-<br>  int main(int argc, char** argv)
-<br>  {
-<br>      EvBaseLoop base;
-<br>      EvHttpServer http(base);
-<br>
-<br>      http.addRoute("/hello", onHttpHello);
-<br>      http.bind("127.0.0.1", 8080);
-<br>
-<br>      base.loop();
-<br>
-<br>      return 0;
-<br>  }
-</code>
+
+```
+  #include "lev.h"
+  using namespace lev;
+
+  static
+  void onHttpHello(struct evhttp_request* req, void* arg)
+  {
+      EvHttpRequest evreq(req);
+      evreq.output().printf("<..>Hello World!<..>");
+      evreq.sendReply(200, "OK");
+  }
+
+  int main(int argc, char** argv)
+  {
+      EvBaseLoop base;
+      EvHttpServer http(base);
+
+      http.addRoute("/hello", onHttpHello);
+      http.bind("127.0.0.1", 8080);
+
+      base.loop();
+
+      return 0;
+  }
+```
