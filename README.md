@@ -4,11 +4,14 @@ Lightweight C++ wrapper for LibEvent 2 API
 
 LibEvent is a great library.  It uses a C interface which is well designed but has a learning curve.
 This library, lev, is a very simple API in C++ that encapsulates commonly used functionality.  It tries
-to stay close to the C concept except when the concept wasn't very clear and it simplifies life-times of
-objects.
-
+to stay close to the libevent API concepts except when there is confusion. It simplifies life-times of
+objects.  The callback function signatures remain identical--but lev objects can be constructed within the
+callback functions.
+```
+      EvHttpRequest evreq(req);
+```
 lev is actually just a single header file, lev.h.  Just include it in your application and start using all
-the classes:
+the classes--no need to build or install:
 
 ```
 class EvBaseLoop;
