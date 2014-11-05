@@ -29,6 +29,10 @@
 
 #endif
 
+//HACK: access internal function to prevent base loop from exiting if there are no events
+extern "C" void event_base_add_virtual(struct event_base *);
+
+
 namespace lev
 {
 
@@ -184,6 +188,18 @@ public:
         mPtr = event_new(base, signum, flags, callback, this);
     }
 
+    void newSignalCtx(event_callback_fn callback, int signum, struct event_base* base, void* ctx)
+    {
+        free();
+        mPtr = evsignal_new(base, signum, callback, (void*)ctx);
+    }
+
+    void newUser(event_callback_fn callback, struct event_base* base)
+    {
+        free();
+        mPtr = event_new(base, -1, 0, callback, this);
+    }
+
     inline void start()
     {
         event_add(mPtr, NULL);
@@ -196,6 +212,11 @@ public:
     inline void end()
     {
         event_del(mPtr);
+    }
+
+    inline void activateUser(int res)
+    {
+        event_active(mPtr, res, 0);
     }
 
     inline struct event_base* base()
@@ -508,11 +529,17 @@ public:
         return mBase;
     }
 
+    inline void incLoopRef()
+    {
+        event_base_add_virtual(mBase);
+    }
+
     void loop(int flags = 0)
     {
         // EVLOOP_ONCE
         // EVLOOP_NONBLOCK
         // EVLOOP_NO_EXIT_ON_EMPTY
+
         assert(mBase);
         event_base_loop(mBase, flags);
     }
@@ -692,6 +719,7 @@ public:
         int ret;
         free();
         mOwner = true;
+        mHdrHead = &mHdrEntry;
         ret = (evhttp_parse_query_str(uri, mHdrHead) == 0);
         moveFirst();
         return ret;
@@ -757,6 +785,7 @@ protected:
     struct evkeyvalq* mHdrHead;
     struct evkeyval* mHdrPtr;
     bool mOwner;
+    struct evkeyvalq mHdrEntry;
 };
 
 
