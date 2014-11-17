@@ -58,7 +58,7 @@ public:
         clear();
         assign(addrandport);
     }
-    IpAddr(const char* addr, short port)
+    IpAddr(const char* addr, uint16_t port)
     {
         clear();
         assign(addr, port);
@@ -76,7 +76,7 @@ public:
         return (ret == 0);
     }
 
-    inline bool assign(const char* addrstr, short port)
+    inline bool assign(const char* addrstr, uint16_t port)
     {
         // 'addrstr' is IPv4 address, port is in host order
 
@@ -86,7 +86,7 @@ public:
         return (ret == 0);
     }
 
-    inline void assign(int address, short port)
+    inline void assign(int address, uint16_t port)
     {
         // Parameters 'address' and 'port' are in host order
         mAddr.sa_family = AF_INET;
@@ -95,7 +95,7 @@ public:
         mSize = sizeof(struct sockaddr_in);
     }
 
-    void setPort(short port)
+    void setPort(uint16_t port)
     {
         ((struct sockaddr_in*)&mAddr)->sin_port = htons(port);
     }
@@ -110,7 +110,7 @@ public:
         return makeStr(true);
     }
 
-    inline short port() const
+    inline uint16_t port() const
     {
         // Only valid for AF_INET
         return ntohs(((struct sockaddr_in*)&mAddr)->sin_port);
