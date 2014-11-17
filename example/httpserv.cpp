@@ -2,6 +2,7 @@
 // Released under the MIT License (http://opensource.org/licenses/MIT)
 
 #include "lev.h"
+#include "levhttp.h"
 
 using namespace lev;
 

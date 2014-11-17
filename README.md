@@ -10,13 +10,13 @@ callback functions.
 ```
       EvHttpRequest evreq(req);
 ```
-lev is actually just a single header file, lev.h.  Just include it in your application and start using all
-the classes--no need to build or install:
+lev is actually just a couple of header file, lev.h, and levhttp.h (if you need a httpserver).  Just include
+it in your application and start using all the classes--no need to build or install:
 
 ```
+class IpAddr;
 class EvBaseLoop;
 class EvEvent;
-class EvSockAddr;
 class EvKeyValues;
 class EvBuffer;
 class EvBufferEvent;
@@ -30,6 +30,7 @@ Code: An HTTP server using lev.  Look at the example section for more.
 
 ```
   #include "lev.h"
+  #include "levhttp.h"
   using namespace lev;
 
   static

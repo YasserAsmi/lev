@@ -36,31 +36,29 @@ extern "C" void event_base_add_virtual(struct event_base *);
 namespace lev
 {
 
+class IpAddr;
 class EvBaseLoop;
 class EvEvent;
-class EvSockAddr;
 class EvKeyValues;
 class EvBuffer;
 class EvBufferEvent;
 class EvConnListener;
 class EvHttpUri;
-class EvHttpRequest;
-class EvHttpServer;
 
 
-class EvSockAddr
+class IpAddr
 {
 public:
-    EvSockAddr()
+    IpAddr()
     {
         clear();
     }
-    EvSockAddr(const char* addrandport)
+    IpAddr(const char* addrandport)
     {
         clear();
         assign(addrandport);
     }
-    EvSockAddr(const char* addr, short port)
+    IpAddr(const char* addr, short port)
     {
         clear();
         assign(addr, port);
@@ -97,21 +95,14 @@ public:
         mSize = sizeof(struct sockaddr_in);
     }
 
-    std::string toString(bool showport = true) const
+    std::string toString() const
     {
-        // Only valid for AF_INET
-        char buf[64];
-        char abuf[64];
-        buf[0] = '\0';
-        if (evutil_inet_ntop(AF_INET, &(((struct sockaddr_in*)&mAddr)->sin_addr), abuf, sizeof(abuf)))
-        {
-            if (!showport)
-            {
-                return std::string(abuf);
-            }
-            evutil_snprintf(buf, sizeof(buf), "%s:%d", abuf, port());
-        }
-        return std::string(buf);
+        return makeStr(false);
+    }
+    std::string toStringFull() const
+    {
+        // Shows port
+        return makeStr(true);
     }
 
     inline short port() const
@@ -139,6 +130,23 @@ protected:
         memset(&mAddr, 0, sizeof(mAddr));
         mAddr.sa_family = AF_INET;
         mSize = sizeof(struct sockaddr_in);
+    }
+
+    std::string makeStr(bool showport) const
+    {
+        // Only valid for AF_INET
+        char buf[64];
+        char abuf[64];
+        buf[0] = '\0';
+        if (evutil_inet_ntop(AF_INET, &(((struct sockaddr_in*)&mAddr)->sin_addr), abuf, sizeof(abuf)))
+        {
+            if (!showport)
+            {
+                return std::string(abuf);
+            }
+            evutil_snprintf(buf, sizeof(buf), "%s:%d", abuf, port());
+        }
+        return std::string(buf);
     }
 };
 
@@ -396,7 +404,7 @@ public:
         mOwner = objowns;
     }
 
-    bool connect(const EvSockAddr& sa)
+    bool connect(const IpAddr& sa)
     {
         int ret = bufferevent_socket_connect(mPtr, (sockaddr*)sa.addr(), sa.addrLen());
 
@@ -463,7 +471,7 @@ public:
         free();
         mPtr = ptr;
     }
-    void newListener(const EvSockAddr& sa, evconnlistener_cb callback, void* cbarg, struct event_base* base)
+    void newListener(const IpAddr& sa, evconnlistener_cb callback, void* cbarg, struct event_base* base)
     {
         //dbglog("Listening on %s\n", sa.toString().c_str());
 
@@ -554,6 +562,104 @@ protected:
     struct event_base* mBase;
 };
 
+
+
+class EvKeyValues
+{
+public:
+    EvKeyValues() :
+        mHdrHead(NULL),
+        mHdrPtr(NULL),
+        mOwner(false)
+    {
+    }
+    EvKeyValues(struct evkeyvalq* headers) :
+        mHdrHead(headers),
+        mOwner(false)
+    {
+        moveFirst();
+    }
+
+    bool newFromUri(const char* uri)
+    {
+        // Parse out arguments from the query portion of an HTTP URI
+        //    q=test&s=some+thing
+        // Will yield
+        //    key="q", value="test"
+        //    key="s", value="some thing"
+        // NOTE: Doesn't support keys only (ie key1&key2=value2)
+
+        int ret;
+        free();
+        mOwner = true;
+        mHdrHead = &mHdrEntry;
+        ret = (evhttp_parse_query_str(uri, mHdrHead) == 0);
+        moveFirst();
+        return ret;
+    }
+
+    void free()
+    {
+        if (mOwner && mHdrHead)
+        {
+            evhttp_clear_headers(mHdrHead);
+        }
+        mOwner = false;
+        mHdrHead = NULL;
+    }
+    const char* find(const char* key)
+    {
+        if (mHdrHead == NULL)
+        {
+            return NULL;
+        }
+        return evhttp_find_header(mHdrHead, key);
+    }
+    bool remove(const char* key)
+    {
+        if (mHdrHead == NULL)
+        {
+            return NULL;
+        }
+        return (evhttp_remove_header(mHdrHead, key) == 0);
+    }
+    bool add(const char* key, const char* value)
+    {
+        int ret = false;
+        if (mHdrHead)
+        {
+            ret = (evhttp_add_header(mHdrHead, key, value) == 0);
+        }
+        return ret;
+    }
+
+    inline void moveFirst()
+    {
+        mHdrPtr = (mHdrHead != NULL) ? mHdrHead->tqh_first : NULL;
+    }
+    inline void moveNext()
+    {
+        mHdrPtr = (mHdrPtr != NULL) ? mHdrPtr->next.tqe_next : NULL;
+    }
+    inline bool eof()
+    {
+        return mHdrPtr == NULL;
+    }
+    inline const char* key()
+    {
+        return (mHdrPtr != NULL) ? mHdrPtr->key : NULL;
+    }
+    inline const char* value()
+    {
+        return (mHdrPtr != NULL) ? mHdrPtr->value : NULL;
+    }
+
+protected:
+    struct evkeyvalq* mHdrHead;
+    struct evkeyval* mHdrPtr;
+    bool mOwner;
+    struct evkeyvalq mHdrEntry;
+};
 
 class EvHttpUri
 {
@@ -688,299 +794,6 @@ public:
 protected:
     struct evhttp_uri* mUri;
     bool mOwner;
-};
-
-
-class EvKeyValues
-{
-public:
-    EvKeyValues() :
-        mHdrHead(NULL),
-        mHdrPtr(NULL),
-        mOwner(false)
-    {
-    }
-    EvKeyValues(struct evkeyvalq* headers) :
-        mHdrHead(headers),
-        mOwner(false)
-    {
-        moveFirst();
-    }
-
-    bool newFromUri(const char* uri)
-    {
-        // Parse out arguments from the query portion of an HTTP URI
-        //    q=test&s=some+thing
-        // Will yield
-        //    key="q", value="test"
-        //    key="s", value="some thing"
-        // NOTE: Doesn't support keys only (ie key1&key2=value2)
-
-        int ret;
-        free();
-        mOwner = true;
-        mHdrHead = &mHdrEntry;
-        ret = (evhttp_parse_query_str(uri, mHdrHead) == 0);
-        moveFirst();
-        return ret;
-    }
-
-    void free()
-    {
-        if (mOwner && mHdrHead)
-        {
-            evhttp_clear_headers(mHdrHead);
-        }
-        mOwner = false;
-        mHdrHead = NULL;
-    }
-    const char* find(const char* key)
-    {
-        if (mHdrHead == NULL)
-        {
-            return NULL;
-        }
-        return evhttp_find_header(mHdrHead, key);
-    }
-    bool remove(const char* key)
-    {
-        if (mHdrHead == NULL)
-        {
-            return NULL;
-        }
-        return (evhttp_remove_header(mHdrHead, key) == 0);
-    }
-    bool add(const char* key, const char* value)
-    {
-        int ret = false;
-        if (mHdrHead)
-        {
-            ret = (evhttp_add_header(mHdrHead, key, value) == 0);
-        }
-        return ret;
-    }
-
-    inline void moveFirst()
-    {
-        mHdrPtr = (mHdrHead != NULL) ? mHdrHead->tqh_first : NULL;
-    }
-    inline void moveNext()
-    {
-        mHdrPtr = (mHdrPtr != NULL) ? mHdrPtr->next.tqe_next : NULL;
-    }
-    inline bool eof()
-    {
-        return mHdrPtr == NULL;
-    }
-    inline const char* key()
-    {
-        return (mHdrPtr != NULL) ? mHdrPtr->key : NULL;
-    }
-    inline const char* value()
-    {
-        return (mHdrPtr != NULL) ? mHdrPtr->value : NULL;
-    }
-
-protected:
-    struct evkeyvalq* mHdrHead;
-    struct evkeyval* mHdrPtr;
-    bool mOwner;
-    struct evkeyvalq mHdrEntry;
-};
-
-
-class EvHttpRequest
-{
-public:
-    EvHttpRequest(struct evhttp_request* req)
-    {
-        mReq = req;
-    }
-    ~EvHttpRequest()
-    {
-    }
-
-    inline void sendError(int error, const char* reason)
-    {
-        evhttp_send_error(mReq, error, reason);
-    }
-    inline void sendReply(int responsecode, const char* responsemsg)
-    {
-        evhttp_send_reply(mReq, responsecode, responsemsg, NULL);
-    }
-    inline void sendReply(int responsecode, const char* responsemsg, EvBuffer& body)
-    {
-        evhttp_send_reply(mReq, responsecode, responsemsg, body.ptr());
-    }
-
-    //TODO: add chunk API
-
-    inline void cancel()
-    {
-        evhttp_cancel_request(mReq);
-    }
-
-    inline struct evhttp_connection* connection()
-    {
-        return evhttp_request_get_connection(mReq);
-    }
-
-    // uri
-
-    inline const char* uriStr()
-    {
-        return evhttp_request_get_uri(mReq);
-    }
-    inline EvHttpUri uri()
-    {
-        EvHttpUri u(evhttp_request_get_evhttp_uri(mReq));
-        return u;
-    }
-
-    inline const char* host()
-    {
-        return evhttp_request_get_host(mReq);
-    }
-    inline enum evhttp_cmd_type cmd()
-    {
-        return evhttp_request_get_command(mReq);
-    }
-    inline int responseCode()
-    {
-        return evhttp_request_get_response_code(mReq);
-    }
-
-    inline struct evkeyvalq* inputHdrs()
-    {
-        return evhttp_request_get_input_headers(mReq);
-    }
-    inline struct evkeyvalq* outputHdrs()
-    {
-        return evhttp_request_get_output_headers(mReq);
-    }
-
-    inline EvBuffer input()
-    {
-        return EvBuffer(evhttp_request_get_input_buffer(mReq));
-    }
-    inline EvBuffer output()
-    {
-        return EvBuffer(evhttp_request_get_output_buffer(mReq));
-    }
-
-protected:
-    struct evhttp_request* mReq;
-
-private:
-    EvHttpRequest();
-};
-
-
-class EvHttpServer
-{
-public:
-    typedef void (*RouteCallback)(struct evhttp_request*, void*);
-
-    EvHttpServer(struct event_base* base)
-    {
-        mServer = evhttp_new(base);
-        if (mServer == NULL)
-        {
-            dbgerr("Can't create http server");
-        }
-    }
-    ~EvHttpServer()
-    {
-        if (mServer)
-        {
-            evhttp_free(mServer);
-        }
-    }
-
-    void setDefaultRoute(RouteCallback callback, void* cbarg = NULL)
-    {
-        evhttp_set_gencb(mServer, callback, cbarg);
-    }
-    bool addRoute(const char* path, RouteCallback callback, void* cbarg = NULL)
-    {
-        int ret = evhttp_set_cb(mServer, path, callback, cbarg);
-        if (ret == -2)
-        {
-            dbgerr("Path %s already exists\n", path);
-        }
-        return ret == 0;
-    }
-    bool deleteRoute(const char* path)
-    {
-        int ret = evhttp_del_cb(mServer, path);
-        return ret == 0;
-    }
-
-    bool bind(const char* address, short port, EvConnListener* connout = NULL)
-    {
-        // can be called multiple times
-        struct evhttp_bound_socket* ret;
-        ret = evhttp_bind_socket_with_handle(mServer, address, port);
-        if (ret)
-        {
-            if (connout)
-            {
-                connout->assign(evhttp_bound_socket_get_listener(ret));
-            }
-            return true;
-        }
-        return false;
-    }
-    inline bool bind(const EvSockAddr& sa)
-    {
-        return bind(sa.toString(false).c_str(), sa.port());
-    }
-
-    static
-    std::string encodeUriString(const char* src)
-    {
-        std::string s;
-        char* temp = evhttp_encode_uri(src);
-        if (temp)
-        {
-            s.assign(temp);
-            free(temp);
-        }
-        return s;
-    }
-
-    static
-    std::string decodeUriString(const char* src)
-    {
-        std::string s;
-        char* temp = evhttp_decode_uri(src);
-        if (temp)
-        {
-            s.assign(temp);
-            free(temp);
-        }
-        return s;
-    }
-
-    static
-    std::string htmlEscape(const char* src)
-    {
-        // Replaces <, >, ", ' and & with &lt;, &gt;, &quot;, &#039; and &amp;
-        std::string s;
-        char* temp = evhttp_htmlescape(src);
-        if (temp)
-        {
-            s.assign(temp);
-            free(temp);
-        }
-        return s;
-    }
-
-protected:
-    struct evhttp* mServer;
-
-private:
-    EvHttpServer();
 };
 
 

@@ -59,7 +59,7 @@ void testServer(const char* arg)
 {
     EvBaseLoop base;
     EvConnListener listener;
-    EvSockAddr sin(arg ? arg : "127.0.0.1:60");
+    IpAddr sin(arg ? arg : "127.0.0.1:60");
 
     printf("Server listening on %s\n", sin.toString().c_str());
 
@@ -122,7 +122,7 @@ void onClientEvent(struct bufferevent* bev, short events, void* ptr)
 void testClient(const char* arg)
 {
     EvBaseLoop base;
-    EvSockAddr sin;
+    IpAddr sin;
     EvEvent evtimeout;
     EvBufferEvent evbuf;
 
