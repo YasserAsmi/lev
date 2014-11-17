@@ -95,6 +95,11 @@ public:
         mSize = sizeof(struct sockaddr_in);
     }
 
+    void setPort(short port)
+    {
+        ((struct sockaddr_in*)&mAddr)->sin_port = htons(port);
+    }
+
     std::string toString() const
     {
         return makeStr(false);
