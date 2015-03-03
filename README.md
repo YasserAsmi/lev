@@ -1,6 +1,9 @@
 lev
 ===
+
 Lightweight C++ wrapper for LibEvent 2 API
+
+[![Build Status](https://webapi.biicode.com/v1/badges/lasote/lasote/lev/master)](https://www.biicode.com/lasote/lev) 
 
 LibEvent is a great library.  It uses a C interface which is well designed but has a learning curve.
 This library, lev, is a very simple API in C++ that encapsulates commonly used functionality.  It tries
